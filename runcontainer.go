@@ -1213,6 +1213,41 @@ func (ri *runIterator16) peekNext() uint16 {
 }
 
 func (ri *runIterator16) advanceIfNeeded(minval uint16) {
+	if ri.hasNext() && ri.peekNext() < minval {
+		key := int64(minval)
+
+		opt := &searchOptions{
+			startIndex: ri.curIndex,
+			endxIndex: int64(len(ri.rc.iv)),
+		}
+
+		if opt.startIndex == -1 {
+			opt.startIndex = 0
+		}
+
+		interval, isPresent, _ := ri.rc.search(key, opt)
+
+		if isPresent || (interval < opt.endxIndex - 1 && interval >= 0) {
+			if ri.curIndex >= 0 && ri.rc.iv[ri.curIndex].length <= ri.curPosInIndex  {
+				ri.curSeq += int64(ri.rc.iv[ri.curIndex].length - ri.curPosInIndex + 1)
+			}
+
+			for j := ri.curIndex + 1; j < interval; j++ {
+				ri.curSeq += int64(ri.rc.iv[j].length + 1)
+			}
+
+			if isPresent {
+				ri.curIndex = interval - 1
+			} else {
+				ri.curIndex = interval
+			}
+
+			ri.curPosInIndex = ri.rc.iv[ri.curIndex].length
+		} else {
+			ri.curSeq = opt.endxIndex - 1
+		}
+	}
+
 	for ri.hasNext() && ri.peekNext() < minval {
 		ri.next()
 	}
